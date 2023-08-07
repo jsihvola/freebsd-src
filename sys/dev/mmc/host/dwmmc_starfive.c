@@ -44,11 +44,11 @@
 #include "opt_mmccam.h"
 
 static struct ofw_compat_data compat_data[] = {
-	{"snps,dw-mshc",	0},
+	{"starfive,jh7110-sdio",	0},
 	{NULL,			0},
 };
 
-//static int dwmmc_starfive_update_ios(struct dwmmc_softc *sc, struct mmc_ios *ios);
+static int dwmmc_starfive_update_ios(struct dwmmc_softc *sc, struct mmc_ios *ios);
 
 static int
 starfive_dwmmc_probe(device_t dev)
@@ -74,15 +74,6 @@ starfive_dwmmc_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->hwtype = HWTYPE_STARFIVE;
 
-	//root = OF_finddevice("/");
-	
-	//sc->bus_hz = 100000000; // datasheetin mukaan starfiven mmc tukis "up to 100MHz"
-	//sc->bus_hz = 52000000; // datasheetin mukaan starfiven mmc tukis "up to 100MHz"
-	//sc->bus_hz = 24000000;
-	//sc->use_pio = 1;
-
-	//sc->update_ios = &dwmmc_starfive_update_ios;  tätä funktiota ei ole, pitäisiköhän se olla?
-	
 	return (dwmmc_attach(dev));
 }
 
@@ -90,7 +81,7 @@ static device_method_t starfive_dwmmc_methods[] = {
 	/* bus interface */
 	DEVMETHOD(device_probe, starfive_dwmmc_probe),
 	DEVMETHOD(device_attach, starfive_dwmmc_attach),
-//	DEVMETHOD(device_detach, dwmmc_detach),  LAITOIN POIS, KUN EI ALTERASSAKAAN OLE
+	DEVMETHOD(device_detach, dwmmc_detach),
 
 	DEVMETHOD_END
 };
@@ -98,9 +89,7 @@ static device_method_t starfive_dwmmc_methods[] = {
 DEFINE_CLASS_1(starfive_dwmmc, starfive_dwmmc_driver, starfive_dwmmc_methods,
     sizeof(struct dwmmc_softc), dwmmc_driver);
 
-//DRIVER_MODULE_ORDERED(starfive_dwmmc, simplebus, starfive_dwmmc_driver, 0, 0, SI_ORDER_ANY);
 DRIVER_MODULE(starfive_dwmmc, simplebus, starfive_dwmmc_driver, 0, 0);
-DRIVER_MODULE(starfive_dwmmc, ofwbus, starfive_dwmmc_driver, NULL, NULL); //uusi, kuten alterassa. tarvitaanko?
 
 #ifndef MMCCAM
 MMC_DECLARE_BRIDGE(starfive_dwmmc);
