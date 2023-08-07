@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-riscv/starfive/clk/jh7110_clk.c             standard
-riscv/starfive/clk/jh7110_clk_pll.c         standard
-riscv/starfive/clk/jh7110_clkgen.c		standard
+riscv/starfive/clk/jh7110_clk.c         standard
+riscv/starfive/clk/jh7110_clk_pll.c     standard
+riscv/starfive/clk/jh7110_clkgen.c      standard
 riscv/starfive/jh7110_reset.c		standard
-#riscv/starfive/jh7110_gpio.c		optional	jh7110_gpio gpio
+riscv/starfive/jh7110_gpio.c		optional	jh7110_gpio gpio
 riscv/starfive/starfive_if_dwc.c	standard
