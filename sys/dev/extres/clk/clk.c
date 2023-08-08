@@ -951,7 +951,9 @@ clknode_get_freq(struct clknode *clknode, uint64_t *freq)
 
 	/* And recalculate my output frequency. */
 	CLKNODE_XLOCK(clknode);
+
 	rv = CLKNODE_RECALC_FREQ(clknode, freq);
+
 	if (rv != 0) {
 		CLKNODE_UNLOCK(clknode);
 		printf("Cannot get frequency for clk: %s, error: %d\n",
@@ -961,6 +963,7 @@ clknode_get_freq(struct clknode *clknode, uint64_t *freq)
 
 	/* Save new frequency to cache. */
 	clknode->freq = *freq;
+
 	CLKNODE_UNLOCK(clknode);
 	return (0);
 }

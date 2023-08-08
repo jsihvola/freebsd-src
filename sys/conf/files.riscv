@@ -84,7 +84,7 @@ riscv/starfive/starfive_if_dwc.c        optional       fdt dwc_starfive
 riscv/starfive/clk/jh7110_clk.c	        standard
 riscv/starfive/clk/jh7110_clkgen.c	standard
 riscv/starfive/clk/jh7110_clk_pll.c	standard
-#riscv/starfive/jh7110_gpio.c           standard
+riscv/starfive/jh7110_gpio.c            standard
 riscv/starfive/jh7110_reset.c	        standard
 
 

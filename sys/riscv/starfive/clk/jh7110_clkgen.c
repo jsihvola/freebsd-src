@@ -146,7 +146,13 @@ static const char *u3_dw_uart_clk_core_p[] = { "perh_root" };
 
 static const char *apb_bus_func_p[] = { "stg_axiahb" };
 static const char *stg_axiahb_p[] = { "axi_cfg0" };
+static const char *ahb0_p[] = { "stg_axiahb" };
 static const char *axi_cfg0_p[] = { "bus_root" };
+
+static const char *u0_dw_sdio_clk_ahb_p[] = { "ahb0" };
+static const char *u1_dw_sdio_clk_ahb_p[] = { "ahb0" };
+static const char *u0_dw_sdio_clk_sdcard_p[] = { "axi_cfg0" };
+static const char *u1_dw_sdio_clk_sdcard_p[] = { "axi_cfg0" };
 
 static const char *gmac_src_p[] = { "gmacusb_root" };
 
@@ -199,8 +205,18 @@ static const struct jh7110_clk_def sys_clks[] = {
 	
 	JH7110_DIV(JH7110_AXI_CFG0, "axi_cfg0", axi_cfg0_p, 3),
 	JH7110_DIV(JH7110_STG_AXIAHB, "stg_axiahb", stg_axiahb_p, 2),
+	JH7110_GATE(JH7110_AHB0, "ahb0", ahb0_p),
 	JH7110_DIV(JH7110_APB_BUS_FUNC, "apb_bus_func",	apb_bus_func_p, 8),
 
+	JH7110_GATE(JH7110_SDIO0_CLK_AHB, "u0_dw_sdio_clk_ahb",
+		    u0_dw_sdio_clk_ahb_p),
+	JH7110_GATE(JH7110_SDIO1_CLK_AHB, "u1_dw_sdio_clk_ahb",
+		    u1_dw_sdio_clk_ahb_p),
+	JH7110_GATEDIV(JH7110_SDIO0_CLK_SDCARD, "u0_dw_sdio_clk_sdcard",
+		    u0_dw_sdio_clk_sdcard_p, 15),
+	JH7110_GATEDIV(JH7110_SDIO1_CLK_SDCARD, "u1_dw_sdio_clk_sdcard",
+		    u1_dw_sdio_clk_sdcard_p, 15),
+	
 	JH7110_DIV(JH7110_GMAC_SRC, "gmac_src", gmac_src_p, 7),
 	
 	JH7110_GATEDIV(JH7110_GMAC0_GTXCLK, "gmac0_gtxclk", gmac0_gtxclk_p, 15),

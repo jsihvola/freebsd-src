@@ -164,7 +164,6 @@ jh7110_clk_recalc_freq(struct clknode *clk, uint64_t *freq)
 {
 	struct jh7110_clk_sc *sc;
 	uint32_t divisor;
-	uint32_t debug;
 
 	printf("jh7110_clk_recalc_freq\n");
 	sc = clknode_get_softc(clk);
@@ -174,8 +173,6 @@ jh7110_clk_recalc_freq(struct clknode *clk, uint64_t *freq)
 	}
 
 	DEVICE_LOCK(clk);
-	debug = READ4_MEMRES(clk, sc->offset);
-	printf("jh7110_clk_recalc_freq(), debug: %u\n", debug);
 	divisor = READ4_MEMRES(clk, sc->offset) & JH7110_DIV_MASK;
 	DEVICE_UNLOCK(clk);
 
@@ -184,7 +181,7 @@ jh7110_clk_recalc_freq(struct clknode *clk, uint64_t *freq)
 	    sc->id %2 == 0)
 		divisor >>= 8;
 
-	printf("jh7110_clk_recalc_freq(), divisor: %u\n", divisor);
+	printf("jh7110_clk_recalc_freq() 5, divisor: %u\n", divisor);
 	if (divisor)
 		*freq = *freq / divisor;
 	else
