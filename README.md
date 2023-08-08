@@ -1,8 +1,8 @@
 Notes
 
--For JH7110 specifically this contains now clk drivers and reset.<br />
--Also contains some drivers for JH7100, they need further developing.<br />
--Does not boot.<br />
+-For JH7110 specifically this contains now clock gen drivers, GPIO and reset (not properly tested yet).<br />
+-Also contains some drivers for JH7100 (ethernet, MMC), they need further developing.<br />
+-Does not boot because fails to mount root file system.<br />
 -Some issues related to copyrights need to be solved.<br />
 -Codes by JS are beginner's work. Criticism is welcome.<br />
 
