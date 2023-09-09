@@ -32,8 +32,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -536,7 +534,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 	vm_offset_t vaddr;
 	vm_offset_t vendaddr;
 	bus_addr_t paddr;
-	bus_size_t sg_len;
+	bus_size_t sg_len, max_sg_len;
 
 	if ((map->flags & DMAMAP_COULD_BOUNCE) != 0 && map->pagesneeded == 0) {
 		CTR4(KTR_BUSDMA, "lowaddr= %d Maxmem= %d, boundary= %d, "
@@ -551,6 +549,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		 */
 		vaddr = (vm_offset_t)buf;
 		vendaddr = (vm_offset_t)buf + buflen;
+		max_sg_len = MIN(buflen, dmat->common.maxsegsz);
 
 		while (vaddr < vendaddr) {
 			sg_len = PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK);
@@ -563,6 +562,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 				    dmat->common.alignment);
 				map->pagesneeded++;
 			}
+			sg_len = MIN(sg_len, max_sg_len);
 			vaddr += sg_len;
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
