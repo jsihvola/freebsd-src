@@ -2,7 +2,7 @@
 
 -For JH7110 specifically this repository contains currently  clock gen drivers, GPIO and reset (not properly tested yet).<br />
 -The repository also contains some drivers (mostly by M. Horne) for JH7100 (ethernet, MMC), they need further development.<br />
--Does not boot because fails to mount the root file system.<br />
+-Booting works now but network doesn't.<br />
 -Some issues related to copyrights need to be solved.<br />
 -Codes by J.S. are beginner's work. Criticism is welcome.<br />
 
