@@ -1,8 +1,8 @@
 **Notes**
 
--For JH7110 specifically this repository contains currently  clock gen drivers, GPIO and reset (not properly tested yet).<br />
--The repository also contains some drivers (mostly by M. Horne) for JH7100 (ethernet, MMC), they need further development.<br />
--Booting works now but network doesn't.<br />
+-For JH7110 specifically this repository contains currently clock gen drivers, GPIO and reset (not properly tested yet).<br />
+-The repository also contains M. Horne's board specific Ethernet code for JH7100. That needs to be readjusted for JH7110.<br />
+-Booting works now but network doesn't. There is a wider ongoing effort to get FreeBSD's DWC Ethernet drivers working for later device versions.<br />
 -Some issues related to copyrights need to be solved.<br />
 -Codes by J.S. are beginner's work. Criticism is welcome.<br />
 
