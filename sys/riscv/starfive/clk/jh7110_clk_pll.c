@@ -46,6 +46,7 @@ struct jh7110_clk_pll_sc {
 	struct syscon              *sysregs;
 	const struct
 	starfive_pll_syscon_value  *syscon_arr;
+	int                        syscon_arr_nitems;
 
   	uint32_t	           flags;
   
@@ -74,7 +75,7 @@ struct jh7110_clk_pll_sc {
 static int
 jh7110_clk_pll_init(struct clknode *clk, device_t dev)
 {
-	printf("jh7110_clk_pll_init\n");
+	printf("%s\n", __func__);
 	clknode_init_parent_idx(clk, 0);
 
 	return (0);
@@ -88,7 +89,8 @@ jh7110_clk_pll_recalc_freq(struct clknode *clk, uint64_t *freq)
 	uint32_t dacpd, dsmpd, fbdiv, prediv, postdiv1;
 	uint64_t frac;
 
-	printf("jh7110_clk_pll_recalc_freq\n");
+	printf("%s: freq: %lu\n", __func__, *freq);
+
 	sc = clknode_get_softc(clk);
 
 	dacpd = (SYSCON_READ_4(sc->sysregs, sc->dacpd_offset)
@@ -106,15 +108,12 @@ jh7110_clk_pll_recalc_freq(struct clknode *clk, uint64_t *freq)
 
 	//DEBUG
 	/*
-	printf("jh7110_clk_pll_recalc_freq, *freq: %lu, name: %s, dacpd: %u,
-	         dsmpd: %u, fbdiv: %u, prediv: %u, postdiv1: %u, frac: %lu\n",
-	       *freq, clknode_get_name(clk), dacpd, dsmpd, fbdiv, prediv,
-	       postdiv1, frac);
-	       */
+	printf("jh7110_clk_pll_recalc_freq, *freq: %lu, name: %s, dacpd: %u, dsmpd: %u, fbdiv: %u, prediv: %u, postdiv1: %u, frac: %lu\n", *freq, clknode_get_name(clk), dacpd, dsmpd, fbdiv, prediv, postdiv1, frac);
+	*/
 
 	/* dacpd and dsmpd both being 0 entails Fraction Multiple Mode */
 	if ((dacpd == 0) && (dsmpd == 0)) {
-		printf("jh7110_clk_pll_recalc_freq: fraction multiple mode\n");
+		printf("%s: fraction multiple mode\n", __func__);
 		*freq = *freq / FRAC_PATR_SIZE * (fbdiv * FRAC_PATR_SIZE +
    	        (frac * FRAC_PATR_SIZE / (1 << 24))) / prediv / (1 << postdiv1);
 	}		
@@ -122,6 +121,7 @@ jh7110_clk_pll_recalc_freq(struct clknode *clk, uint64_t *freq)
 		*freq = *freq / FRAC_PATR_SIZE * (fbdiv * FRAC_PATR_SIZE)
                                    		     / prediv / (1 << postdiv1);
 	}
+	//printf("%s: freq: %lu\n", __func__, *freq);
 		
 	return (0);
 }
@@ -134,10 +134,10 @@ jh7110_clk_pll_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	struct jh7110_clk_pll_sc *sc;
 	const struct starfive_pll_syscon_value *syscon_val = NULL;
 
-	printf("jh7110_clk_pll_set_freq\n");
+	printf("%s\n", __func__);
 	sc = clknode_get_softc(clk);
 
-	for (int i = 0; i != nitems(&sc->syscon_arr); i++) {
+	for (int i = 0; i != sc->syscon_arr_nitems; i++) {
 		if (*fout == sc->syscon_arr[i].freq) {
 			syscon_val = &sc->syscon_arr[i];
 		}
@@ -203,7 +203,8 @@ jh7110_clk_pll_register(struct clkdom *clkdom, struct jh7110_pll_def *clkdef)
 	sc->sysregs = clkdef->sysregs;
 
 	if(!strncmp(clknode_get_name(clk), "pll0_out", 8)) {
-		sc->syscon_arr = &jh7110_pll0_syscon_freq[0];
+		sc->syscon_arr = jh7110_pll0_syscon_freq;
+		sc->syscon_arr_nitems = nitems(jh7110_pll0_syscon_freq);
 
 		sc->dacpd_offset = clkdef->pll_offsets[0];
 		sc->dsmpd_offset = clkdef->pll_offsets[0];
@@ -228,7 +229,8 @@ jh7110_clk_pll_register(struct clkdom *clkdom, struct jh7110_pll_def *clkdef)
 	}
 
 	else if (!strncmp(clknode_get_name(clk), "pll1_out", 8)) {
-		sc->syscon_arr = &jh7110_pll1_syscon_freq[0];
+		sc->syscon_arr = jh7110_pll1_syscon_freq;
+		sc->syscon_arr_nitems = nitems(jh7110_pll1_syscon_freq);
 
 		sc->dacpd_offset = clkdef->pll_offsets[3];
 		sc->dsmpd_offset = clkdef->pll_offsets[3];
@@ -253,7 +255,8 @@ jh7110_clk_pll_register(struct clkdom *clkdom, struct jh7110_pll_def *clkdef)
 	}
 
 	else if (!strncmp(clknode_get_name(clk), "pll2_out", 8)) {
-		sc->syscon_arr = &jh7110_pll2_syscon_freq[0];
+		sc->syscon_arr = jh7110_pll2_syscon_freq;;
+		sc->syscon_arr_nitems = nitems(jh7110_pll2_syscon_freq);
 
 		sc->dacpd_offset = clkdef->pll_offsets[5];
 		sc->dsmpd_offset = clkdef->pll_offsets[5];
