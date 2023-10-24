@@ -27,8 +27,6 @@ device		hwreset
 device		phy
 device		regulator
 device		syscon
-device		syscon_power
-device		riscv_syscon
 
 # Backlight subsystem
 device		backlight
@@ -59,6 +57,7 @@ device		da9063_rtc	# Dialog Semiconductor DA9063 RTC
 device		goldfish_rtc	# QEMU RTC
 
 # Ethernet drivers
+device		cgem		# Cadence GEM Gigabit Ethernet device
 device		xae		# Xilinx AXI Ethernet MAC
 
 # DMA support
@@ -70,6 +69,14 @@ device		xilinx_spi	# Xilinx AXI Quad-SPI Controller
 
 # Power management controllers
 device		da9063_pmic	# Dialog Semiconductor DA9063 PMIC
+
+# VisionFive2 device drivers. okay, there are probably useless
+#device		dwc
+#device          dwc_starfive
+device		eqos
+device		eqos_starfive
+device		miibus		# MII bus support
+files		"../starfive/files.starfive"
 
 # SiFive device drivers
 device		fe310aon

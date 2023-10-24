@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 static struct ofw_compat_data compat_data[] = {
 	{"sifive,test0",	1},
 	{"sifive,test1",	1},
-	{"starfive,jh7110",     1},
 	{NULL,			0}
 };
 
