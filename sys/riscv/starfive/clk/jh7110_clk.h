@@ -54,7 +54,9 @@ struct jh7110_clk_def {
 
 struct jh7110_pll_def {
 	struct clknode_init_def	   clkdef;
+    	struct mtx		   *mtx;
   	struct syscon              *sysregs;
+  	struct resource            *syscon_mem_res;  
   	uint32_t                   *pll_offsets;
 
 };
@@ -81,16 +83,6 @@ struct jh7110_pll_def {
 	.flags = _flags,					\
         .d_max = _d_max,                                        \
 }
-
-#define	JH7110_LINK(_idx, _name)			        \
-{								\
-	.clkdef.id =	_idx,					\
-	.clkdef.name =	_name,					\
-	.clkdef.parent_names = NULL,				\
-	.clkdef.parent_cnt = 0,			                \
-	.clkdef.flags = CLK_NODE_STATIC_STRINGS,		\
-}
-
 
 #define	JH7110_GATE(_idx, _name, _pn)		                                \
     JH7110_CLK(_idx, _name, _pn, 0, JH7110_CLK_HAS_GATE)

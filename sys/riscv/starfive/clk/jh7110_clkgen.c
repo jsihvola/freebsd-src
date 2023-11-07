@@ -58,16 +58,10 @@
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 
 #include <riscv/starfive/clk/jh7110_clk.h>
-#include <dev/extres/syscon/syscon.h>
+//#include <dev/extres/syscon/syscon.h>
 
 #include "clkdev_if.h"
-#include "syscon_if.h"
-
-#if 0
-#define DPRINTF(dev, msg...) device_printf(dev, msg)
-#else
-#define DPRINTF(dev, msg...)
-#endif
+//#include "syscon_if.h"
 
 /* This file contains general functionality for jh7110 clock generator driver
    plus more specifically initializes the clocks of sys and aon groups */
@@ -79,15 +73,15 @@ static struct ofw_compat_data compat_data[] = {
 
 struct jh7110_clkgen_softc {
 	struct mtx		mtx;
-	struct resource		*res;
 	struct clkdom		*clkdom;
 	int			*rid;
   
-  	struct resource         *sys_mem_res;
+	struct resource		*sys_mem_res;
 	struct resource         *stg_mem_res;
 	struct resource         *aon_mem_res;
 	struct resource         *isp_mem_res;
 	struct resource         *vout_mem_res;
+  	struct resource         *syscon_mem_res;
 };
 
 static struct resource_spec res_spec[] = {
@@ -95,9 +89,8 @@ static struct resource_spec res_spec[] = {
 	RESOURCE_SPEC_END
 };
 
-#define	RD4(sc, reg)		bus_read_4(&(sc)->res[0], (reg))
-#define	WR4(sc, reg, val)	bus_write_4(&(sc)->res[0], (reg), (val))
-
+#define	RD4(sc, reg)		bus_read_4(&(sc)->sys_mem_res[0], (reg))
+#define	WR4(sc, reg, val)	bus_write_4(&(sc)->sys_mem_res[0], (reg), (val))
 
 struct resource *
 jh7110_clk_get_memres(struct clknode *clk, uint32_t flags)
@@ -160,7 +153,14 @@ static const char *gmac0_gtxclk_p[] = { "gmacusb_root" };
 static const char *gmac0_ptp_p[] = { "gmac_src" };
 static const char *gmac0_gtxc_p[] = { "gmac0_gtxclk" };
 
-static const char *u1_dw_gmac5_axi64_clk_ahb_p[] = { "stg_axiahb" };
+static const char *gmac1_gtxclk_p[] = { "gmacusb_root" };
+
+static const char *u1_dw_gmac5_axi64_clk_tx_p[] = { "gmac1_gtxclk", "gmac1_rmii_rtx" };
+static const char *u1_dw_gmac5_axi64_clk_ptp_p[] = { "gmac_src" };
+static const char *u1_dw_gmac5_axi64_clk_ahb_p[] = { "ahb0" };
+static const char *u1_dw_gmac5_axi64_clk_axi_p[] = { "stg_axiahb" };
+static const char *gmac1_gtxc_p[] = { "gmac1_gtxclk" };
+static const char *gmac1_rmii_rtx_p[] = { "gmac1_rmii_refin" };
 
 /* parents for SYS pll fixed clocks and pll_out clocks */
 static const char *gmacusb_root_p[] = { "pll0_out" };		
@@ -222,6 +222,17 @@ static const struct jh7110_clk_def sys_clks[] = {
 	JH7110_GATEDIV(JH7110_GMAC0_GTXCLK, "gmac0_gtxclk", gmac0_gtxclk_p, 15),
 	JH7110_GATEDIV(JH7110_GMAC0_PTP, "gmac0_ptp", gmac0_ptp_p, 31),
 	JH7110_GATE(JH7110_GMAC0_GTXC, "gmac0_gtxc", gmac0_gtxc_p),
+
+	JH7110_DIV(JH7110_GMAC1_GTXCLK, "gmac1_gtxclk", gmac1_gtxclk_p, 15),
+	JH7110_GATEMUX(JH7110_GMAC5_CLK_TX, "u1_dw_gmac5_axi64_clk_tx",
+		       u1_dw_gmac5_axi64_clk_tx_p),
+	JH7110_GATEDIV(JH7110_GMAC5_CLK_PTP, "u1_dw_gmac5_axi64_clk_ptp",
+		       u1_dw_gmac5_axi64_clk_ptp_p, 31),
+	JH7110_GATE(JH7110_GMAC5_CLK_AXI, "u1_dw_gmac5_axi64_clk_axi",
+		    u1_dw_gmac5_axi64_clk_axi_p),
+	JH7110_GATE(JH7110_GMAC1_GTXC, "gmac1_gtxc", gmac1_gtxc_p),
+	JH7110_DIV(JH7110_GMAC1_RMII_RTX, "gmac1_rmii_rtx",
+		   gmac1_rmii_rtx_p, 30),
 };
 
 /* pll_out clks (SYS) */
@@ -280,11 +291,6 @@ static const struct jh7110_clk_def aon_clks[] = {
 		    u0_dw_gmac5_axi64_clk_tx_p),
 };
 
-/* external SYS & AON clocks */
-static struct clk_link_def ext_clks[] = {
-	JH7110_LINK(JH7110_CLK_END + 12, "gmac0_rmii_refin"),
-};
-
 /* Default DT mapper. */
 static int
 jh7110_ofw_map(struct clkdom *clkdom, uint32_t ncells,
@@ -296,11 +302,11 @@ jh7110_ofw_map(struct clkdom *clkdom, uint32_t ncells,
 	printf("jh7110_ofw_map(), ncells: %u, cells[0]: %u\n", ncells, cells[0]);
   
 	if (ncells == 1) {
-		printf("jh7110_ofw_map, ncells == 1\n"); //DEBUG
+		printf("jh7110_ofw_map, ncells == 1\n");
 		*clk = clknode_find_by_id(clkdom, id);
 	}
 	else {
-		printf("jh7110_ofw_map, nells != 1\n"); //DEBUG
+		printf("jh7110_ofw_map, nells != 1\n");
 		return  (ERANGE);
 	}
 	if (*clk == NULL) {
@@ -340,54 +346,26 @@ jh7110_clkgen_attach(device_t dev)
 	int i, rid, error;
 	pcell_t *sysprop;
 	pcell_t pll_offsets[8];
-	struct syscon *sysregs;
+	struct syscon *sysregs = NULL;
 	phandle_t node;
+	clk_t osc, cpu_core, cpu_root, pll0_out;
+	uint64_t cpu_core_freq;
+	uint64_t rstart;
 
 	sc = device_get_softc(dev);
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
-	//The memory area allocated here corresponds sys group
-	//It's used by clkdev interface at the moment
-	error = bus_alloc_resources(dev, res_spec, &sc->res);
-	if (error) {
-		device_printf(dev, "Couldn't allocate resources\n");
-		return (ENXIO);
-	}
-
 	node = ofw_bus_get_node(dev);
 
-	/* Sanity check */
-	error = OF_searchencprop(node, "#clock-cells", &reg, sizeof(reg));
-	if (error == -1) {
-		device_printf(dev, "Failed to get #clock-cells\n");
-		return (ENXIO);
-	}
-	if (reg != 1) {
-		device_printf(dev, "clock cells(%d) != 1\n", reg);
+	/* Allocate memory groups */
+	
+	error = bus_alloc_resources(dev, res_spec, &sc->sys_mem_res);
+	if (error) {
+		device_printf(dev, "Couldn't allocate sys group resources\n");
 		return (ENXIO);
 	}
 
-	/* Create clock domain */
-	sc->clkdom = clkdom_create(dev);
-	if (sc->clkdom == NULL) {
-		DPRINTF(dev, "Failed to create clkdom\n");
-		return (ENXIO);
-	}
-	clkdom_set_ofw_mapper(sc->clkdom, jh7110_ofw_map);
-
-	/* Allocate resources for memory groups */
-	error = ofw_bus_find_string_index(node, "reg-names", "sys", &rid);
-	if (error != 0) {
-		device_printf(dev, "Cannot get 'sys' memory\n");
-		return (ENXIO);
-	}
-	sc->sys_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
-	if (sc->sys_mem_res == NULL) {
-		device_printf(dev, "Cannot allocate 'sys' (rid: %d)\n", rid);
-		return (ENXIO);
-	}
 	error = ofw_bus_find_string_index(node, "reg-names", "stg", &rid);
 	if (error != 0) {
 		device_printf(dev, "Cannot get 'stg' memory\n");
@@ -412,7 +390,27 @@ jh7110_clkgen_attach(device_t dev)
 		    rid);
 		return (ENXIO);
 	}
-	/*  ISP ja VOUT can be added later. Not exactly sure if they will
+	
+	/* Sanity check */
+	error = OF_searchencprop(node, "#clock-cells", &reg, sizeof(reg));
+	if (error == -1) {
+		device_printf(dev, "Failed to get #clock-cells\n");
+		return (ENXIO);
+	}
+	if (reg != 1) {
+		device_printf(dev, "clock cells(%d) != 1\n", reg);
+		return (ENXIO);
+	}
+
+	/* Create clock domain */
+	sc->clkdom = clkdom_create(dev);
+	if (sc->clkdom == NULL) {
+		device_printf(dev, "Failed to create clkdom\n");
+		return (ENXIO);
+	}
+	clkdom_set_ofw_mapper(sc->clkdom, jh7110_ofw_map);
+
+	/*  ISP and VOUT can be added later. Not exactly sure if they will
 	    be allocated here or does it happen on their init functions
 	
 	error =	ofw_bus_find_string_index(node, "reg-names", "isp", &rid);
@@ -441,25 +439,33 @@ jh7110_clkgen_attach(device_t dev)
 	}
 	*/
 
-	/* Get syscon property for pll_out clocks */
-	if (syscon_get_by_ofw_property(dev, node, "starfive,sys-syscon",
-				                               &sysregs) != 0) {
-	  device_printf(dev, "Syscon property missing\n");
-	  return (ENXIO);
-	}
+	/* Temporary solution for syscon registers */
+	sc->syscon_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0x13030000,
+	    0x1303FFFF, 0x1000, RF_ACTIVE );
 
-	/* Get  */ 
+	rstart = rman_get_start(sc->syscon_mem_res);
+	printf("%s, rman_get_start returns %lu\n", __func__, rstart);
+	rstart = rman_get_end(sc->syscon_mem_res);
+	printf("%s, rman_get_end returns %lu\n", __func__, rstart);
+	
+	/* Get syscon property for pll_out clocks */
 	error = OF_getencprop_alloc_multi(node, "starfive,sys-syscon",
 					  sizeof(pcell_t), (void**)&sysprop);
 	
 	/* Element 0 is a phandle, 1-8 are offset values */
-	for (int i = 0; i != 8; i++)
+	for (int i = 0; i != 8; i++) {
 		pll_offsets[i] = sysprop[i+1];
+		printf("i, %d, pll_offsets[i]: %d, ", i, pll_offsets[i]); //debug
+	}
+	printf("\n");
 
 	/* Registering clocks */
+
 	for (i = 0; i < nitems(pll_out_clks); i++) {
 		pll_out_clks[i].pll_offsets = pll_offsets;
 		pll_out_clks[i].sysregs = sysregs;
+		pll_out_clks[i].syscon_mem_res = sc->syscon_mem_res;
+		pll_out_clks[i].mtx = &sc->mtx;
  	        error = jh7110_clk_pll_register(sc->clkdom, &pll_out_clks[i]);
 		if (error != 0)
 			device_printf(dev, "Failed to register clock %s: %d\n",
@@ -491,32 +497,60 @@ jh7110_clkgen_attach(device_t dev)
 
 	for (int i = 0; i < nitems(aon_clks); i++) {
 		error = jh7110_clk_register(sc->clkdom, &aon_clks[i],
-					                        JH7110_CLK_AON);
+					    JH7110_CLK_AON);
 		if (error != 0)
 			device_printf(dev, "Failed to register clock %s: %d\n",
 				      aon_clks[i].clkdef.name, error);
 		else
 			printf("jh7110_clkgen_attach(), Registered %s\n",
-			              aon_clks[i].clkdef.name);
-	}
-
-	for (int i = 0; i < nitems(ext_clks); i++) {
-		error = clknode_link_register(sc->clkdom, &ext_clks[i]);
-		if (error != 0)
-			device_printf(dev, "Failed to register clock %s: %d\n",
-				      ext_clks[i].clkdef.name, error);
-		else
-			printf("jh7110_clkgen_attach(), Registered %s\n",
-			              ext_clks[i].clkdef.name);
+			       aon_clks[i].clkdef.name);
 	}
 	
 	error = clkdom_finit(sc->clkdom);
 	if (error) {
-		DPRINTF(dev, "Clk domain finit fails %x.\n", error);
+		device_printf(dev, "Clk domain finit fails %x.\n", error);
 	}
 
-	//if (bootverbose)
-	printf("jh7110_clkgen_attach(), clockdom_dump()\n");
+	/* Adjusting clocks */
+	
+	error = clk_get_by_name(dev, "osc", &osc);
+	if (error != 0)
+		device_printf(dev, "Failed to get osc by name\n");
+
+	error = clk_get_by_id(dev, sc->clkdom, JH7110_CPU_CORE, &cpu_core);
+	if (error != 0)
+		device_printf(dev, "Failed to get cpu_core\n");
+	
+	error = clk_get_by_id(dev, sc->clkdom, JH7110_CPU_ROOT, &cpu_root);
+	if (error != 0)
+		device_printf(dev, "Failed to get cpu_root\n");
+
+	error = clk_get_by_id(dev, sc->clkdom, JH7110_PLL0_OUT, &pll0_out);
+	if (error != 0)
+		device_printf(dev, "Failed to get pll0_out\n");
+
+        error = clk_get_freq(pll0_out, &cpu_core_freq);
+	if (error != 0)
+		device_printf(dev, "Failed to set cpu_root freq\n");
+	
+        error = clk_set_freq(cpu_core, cpu_core_freq/2, 0);
+	if (error != 0)
+		device_printf(dev, "Failed to set cpu_core freq\n");
+
+	error = clk_set_parent_by_clk(cpu_root, osc);
+	if (error != 0)
+		device_printf(dev, "Failed to set cpu_root parent (2)\n");
+	
+	error = clk_set_freq(pll0_out, PLL0_DEFAULT_FREQ, 0);
+	if (error != 0)
+		device_printf(dev, "Failed to set freq for pll0_out\n");
+
+	error = clk_set_parent_by_clk(cpu_root, pll0_out);
+	if (error != 0)
+		device_printf(dev, "Failed to set pll0_out parent\n");
+	
+	if (bootverbose)
+		printf("%s, clockdom_dump()\n", __func__);
 	clkdom_dump(sc->clkdom);
 
 	return (0);
@@ -525,7 +559,7 @@ jh7110_clkgen_attach(device_t dev)
 static int
 jh7110_clkgen_detach(device_t dev)
 {
-	printf("jh7110_clkgen_detach()\n");
+	printf("%s\n", __func__);
 	return (EBUSY);
 }
 
@@ -534,8 +568,8 @@ static int
 jh7110_clkgen_read_4(device_t dev, bus_addr_t addr, uint32_t *val)
 {
 	struct jh7110_clkgen_softc *sc;
-	printf("jh7110_clkgen_read_4\n");
-
+	printf("%s\n", __func__);
+	
 	sc = device_get_softc(dev);
 
 	*val = RD4(sc, addr);
@@ -547,7 +581,7 @@ jh7110_clkgen_write_4(device_t dev, bus_addr_t addr, uint32_t val)
 {
 	struct jh7110_clkgen_softc *sc;
 
-	printf("jh7110_clkgen_write_4\n");
+	printf("%s\n", __func__);
 	sc = device_get_softc(dev);
 	WR4(sc, addr, val);
 	return (0);
@@ -559,7 +593,7 @@ jh7110_clkgen_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set
 	struct jh7110_clkgen_softc *sc;
 	uint32_t reg;
 
-	printf("jh7110_clkgen_modify_4\n");
+	printf("%s\n", __func__);
 	sc = device_get_softc(dev);
 
 	reg = RD4(sc, addr);
@@ -606,8 +640,8 @@ static device_method_t jh7110_clkgen_methods[] = {
 DEFINE_CLASS_0(jh7110_clkgen, jh7110_clkgen_driver, jh7110_clkgen_methods,
     sizeof(struct jh7110_clkgen_softc));
 
-EARLY_DRIVER_MODULE(jh7110_clkgen, simplebus, jh7110_clkgen_driver,
-0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(jh7110_clkgen, simplebus, jh7110_clkgen_driver, 0, 0,
+    BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 
 /* TODO: MODULE_DEPEND? */
 MODULE_VERSION(jh7110_clkgen, 1);

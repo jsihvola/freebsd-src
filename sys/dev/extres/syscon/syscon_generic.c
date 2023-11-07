@@ -66,7 +66,7 @@ static int syscon_generic_detach(device_t dev);
  * Generic syscon driver (FDT)
  */
 static struct ofw_compat_data compat_data[] = {
-	{"syscon",	1},
+	{"syscon-is-off",	1},
 	{NULL,		0}
 };
 
