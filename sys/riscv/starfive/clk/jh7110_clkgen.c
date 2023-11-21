@@ -162,7 +162,10 @@ static const char *u1_dw_gmac5_axi64_clk_axi_p[] = { "stg_axiahb" };
 static const char *gmac1_gtxc_p[] = { "gmac1_gtxclk" };
 static const char *gmac1_rmii_rtx_p[] = { "gmac1_rmii_refin" };
 
-/* parents for SYS pll fixed clocks and pll_out clocks */
+static const char *nocstg_bus_p[] = { "bus_root" };
+static const char *noc_bus_clk_stg_axi_p[] = { "nocstg_bus" };
+
+/* parents for pll fixed clocks and pll_out clocks */
 static const char *gmacusb_root_p[] = { "pll0_out" };		
 static const char *apb12_p[] = { "apb_bus" };
 static const char *apb_bus_p[] = { "u2_pclk_mux_pclk" };
@@ -171,6 +174,8 @@ static const char *u2_pclk_mux_func_pclk_p[] = { "apb_bus_func" };
 static const char *aon_ahb_p[] = { "stg_axiahb" };
 
 static const char *pll_parents[] = { "osc" };
+
+static const char *stg_apb_p[] = { "apb_bus" };
 
 /* non-pll SYS clocks */
 static const struct jh7110_clk_def sys_clks[] = {
@@ -233,6 +238,12 @@ static const struct jh7110_clk_def sys_clks[] = {
 	JH7110_GATE(JH7110_GMAC1_GTXC, "gmac1_gtxc", gmac1_gtxc_p),
 	JH7110_DIV(JH7110_GMAC1_RMII_RTX, "gmac1_rmii_rtx",
 		   gmac1_rmii_rtx_p, 30),
+
+	JH7110_DIV(JH7110_NOCSTG_BUS, "nocstg_bus", nocstg_bus_p, 3),
+
+	JH7110_GATE(JH7110_NOC_BUS_CLK_STG_AXI,
+		    "u0_sft_7110_noc_bus_clk_stg_axi", noc_bus_clk_stg_axi_p),
+	
 };
 
 /* pll_out clks (SYS) */
@@ -260,9 +271,10 @@ static struct jh7110_pll_def pll_out_clks[] = {
 	},
 };
 
-/* SYS fixed pll clocks */
-static struct clk_fixed_def sys_pll_clks[] = {
+/* fixed pll clocks */
+static struct clk_fixed_def fixed_pll_clks[] = {
 
+	/* SYS */
 	JH7110_PLL(JH7110_GMACUSB_ROOT, "gmacusb_root", gmacusb_root_p),
 	JH7110_PLL(JH7110_PCLK2_MUX_FUNC_PCLK, "u2_pclk_mux_func_pclk",
 		   u2_pclk_mux_func_pclk_p),
@@ -272,6 +284,9 @@ static struct clk_fixed_def sys_pll_clks[] = {
 	JH7110_PLL(JH7110_APB12, "apb12", apb12_p),
 
 	JH7110_PLL(JH7110_AON_AHB, "aon_ahb", aon_ahb_p),
+
+	/* STG */
+	JH7110_PLL(JH7110_STG_APB, "stg_apb", stg_apb_p),
 };
 
 /* non-pll AON clocks & parents */
@@ -289,6 +304,26 @@ static const struct jh7110_clk_def aon_clks[] = {
 		    gmac0_rmii_rtx_p, 30),
 	JH7110_GATEMUX(JH7110_U0_GMAC5_CLK_TX, "u0_dw_gmac5_axi64_clk_tx",
 		    u0_dw_gmac5_axi64_clk_tx_p),
+};
+
+/* STG clocks & parents */
+static const char *plda_pcie_clk_apb_p[] = { "stg_apb" };
+static const char *plda_pcie_clk_axi_mst0_p[] = { "stg_axiahb" };
+static const char *plda_pcie_clk_tl_p[] = { "stg_axiahb" };
+
+static const struct jh7110_clk_def stg_clks[] = {
+	JH7110_GATE(JH7110_PCIE0_CLK_APB, "u0_plda_pcie_clk_apb",
+		    plda_pcie_clk_apb_p),
+	JH7110_GATE(JH7110_PCIE0_CLK_AXI_MST0, "u0_plda_pcie_clk_axi_mst0",
+		    plda_pcie_clk_axi_mst0_p),
+	JH7110_GATE(JH7110_PCIE0_CLK_TL, "u0_plda_pcie_clk_tl",
+		    plda_pcie_clk_tl_p),
+	JH7110_GATE(JH7110_PCIE1_CLK_APB, "u1_plda_pcie_clk_apb",
+		    plda_pcie_clk_apb_p),
+	JH7110_GATE(JH7110_PCIE1_CLK_AXI_MST0, "u1_plda_pcie_clk_axi_mst0",
+		    plda_pcie_clk_axi_mst0_p),
+	JH7110_GATE(JH7110_PCIE1_CLK_TL, "u1_plda_pcie_clk_tl",
+		    plda_pcie_clk_tl_p),
 };
 
 /* Default DT mapper. */
@@ -440,8 +475,8 @@ jh7110_clkgen_attach(device_t dev)
 	*/
 
 	/* Temporary solution for syscon registers */
-	sc->syscon_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0x13030000,
-	    0x1303FFFF, 0x1000, RF_ACTIVE );
+	sc->syscon_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+	    0x13030000, 0x1303FFFF, 0x1000, RF_ACTIVE );
 
 	rstart = rman_get_start(sc->syscon_mem_res);
 	printf("%s, rman_get_start returns %lu\n", __func__, rstart);
@@ -484,15 +519,15 @@ jh7110_clkgen_attach(device_t dev)
 					    RD4(sc, sys_clks[i].offset));
 	}
 
-	for (i = 0; i < nitems(sys_pll_clks); i++) {
+	for (i = 0; i < nitems(fixed_pll_clks); i++) {
 
-		error = clknode_fixed_register(sc->clkdom, &sys_pll_clks[i]);
+		error = clknode_fixed_register(sc->clkdom, &fixed_pll_clks[i]);
 		if (error != 0)
 			device_printf(dev, "Failed to register clock %s: %d\n",
-				      sys_pll_clks[i].clkdef.name, error);
+				      fixed_pll_clks[i].clkdef.name, error);
 		else
-			printf("%s reg\t%x\n", sys_pll_clks[i].clkdef.name,
-			 RD4(sc, sys_pll_clks[i].clkdef.id * sizeof(uint32_t)));
+			printf("%s reg\t%x\n", fixed_pll_clks[i].clkdef.name,
+		       RD4(sc, fixed_pll_clks[i].clkdef.id * sizeof(uint32_t)));
 	}
 
 	for (int i = 0; i < nitems(aon_clks); i++) {
@@ -504,6 +539,16 @@ jh7110_clkgen_attach(device_t dev)
 		else
 			printf("jh7110_clkgen_attach(), Registered %s\n",
 			       aon_clks[i].clkdef.name);
+	}
+
+	for (i = 0; i < nitems(stg_clks); i++) {
+	        error = jh7110_clk_register(sc->clkdom, &stg_clks[i], JH7110_CLK_STG);
+		if (error != 0)
+			device_printf(dev, "Failed to register clock %s: %d\n",
+			    stg_clks[i].clkdef.name, error);
+		else
+			jh7110_print_clkreg(stg_clks[i].clkdef.name,
+					    RD4(sc, stg_clks[i].offset));
 	}
 	
 	error = clkdom_finit(sc->clkdom);
@@ -549,8 +594,8 @@ jh7110_clkgen_attach(device_t dev)
 	if (error != 0)
 		device_printf(dev, "Failed to set pll0_out parent\n");
 	
-	if (bootverbose)
-		printf("%s, clockdom_dump()\n", __func__);
+	//if (bootverbose)
+	printf("clockdom_dump()\n");
 	clkdom_dump(sc->clkdom);
 
 	return (0);
