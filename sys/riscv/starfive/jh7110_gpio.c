@@ -26,7 +26,6 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,20 +49,21 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-#define JH7110_GPIO_PINS 64
+#define JH7110_GPIO_PINS        64
 
-#define GPIOEN          0xdc
-#define GPIOE_0         0x100
-#define GPIOE_1         0x104
-#define GPIO_DIN_LOW	0x118
-#define GPIO_DIN_HIGH	0x11c
-#define GP0_DOUT_CFG	0x0
-#define GP0_DOEN_CFG    0x40
+#define GPIOEN                  0xdc
+#define GPIOE_0                 0x100
+#define GPIOE_1                 0x104
+#define GPIO_DIN_LOW	        0x118
+#define GPIO_DIN_HIGH	        0x11c
+#define GP0_DOUT_CFG	        0x0
+#define GP0_DOEN_CFG            0x40
 
-#define ENABLE_MASK     0x3f
-#define DATA_OUT_MASK   0x7f
-#define ALIGN_4(_val)   (_val & ~3)
-#define MOD_4(_val)     (_val & 3)
+#define ENABLE_MASK             0x3f
+#define DATA_OUT_MASK           0x7f
+
+#define ALIGN_4(_val) (_val & ~3)
+#define MOD_4(_val) (_val & 3)
 
 
 struct jh7110_gpio_softc {
@@ -94,7 +94,6 @@ static device_t
 jh7110_gpio_get_bus(device_t dev)
 {
 	struct jh7110_gpio_softc *sc;
-	printf("jh7110_gpio_get_bus\n");
 
 	sc = device_get_softc(dev);
 
@@ -114,7 +113,6 @@ jh7110_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 {
 	struct jh7110_gpio_softc *sc;
 	uint32_t reg;
-	printf("jh7110_gpio_get_get\n");
 	
 	sc = device_get_softc(dev);
 
@@ -140,7 +138,6 @@ jh7110_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 {
 	struct jh7110_gpio_softc *sc;
 	uint32_t reg;
-	printf("jh7110_gpio_pin_set\n");
 
 	sc = device_get_softc(dev);
 
@@ -162,7 +159,6 @@ jh7110_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
 	struct jh7110_gpio_softc *sc;
 	uint32_t reg;
-	printf("jh7110_gpio_pin_getflags\n");
 	
 	sc = device_get_softc(dev);
 
@@ -187,7 +183,6 @@ jh7110_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct jh7110_gpio_softc *sc;
 	uint32_t reg;
-	printf("jh7110_gpio_pin_setflags\n");
 
 	sc = device_get_softc(dev);
 		
@@ -225,7 +220,7 @@ jh7110_gpio_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	device_set_desc(dev, "jh7110 GPIO generator driver");
+	device_set_desc(dev, "StarFive JH7110 GPIO generator driver");
 	
 	return (BUS_PROBE_DEFAULT);
 }
@@ -234,7 +229,6 @@ static int
 jh7110_gpio_detach(device_t dev)
 {
 	struct jh7110_gpio_softc *sc;
-	printf("jh7110_gpio_detach\n");
 	
 	sc = device_get_softc(dev);
 
@@ -251,7 +245,6 @@ jh7110_gpio_attach(device_t dev)
 	struct jh7110_gpio_softc *sc;
 	int err;
 
-	printf("jh7110_gpio_attach\n");
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 

@@ -51,11 +51,8 @@ struct starfive_pll_syscon_value {
 	uint32_t prediv;
 	uint32_t fbdiv;
 	uint32_t postdiv1;
-/* Both daxpd and dsmpd set 1 while integer multiple mode */
-/* Both daxpd and dsmpd set 0 while fraction multiple mode */
 	uint32_t dacpd;
 	uint32_t dsmpd;
-/* frac value should be decimals multiplied by 2^24 */
 	uint32_t frac;
 };
 

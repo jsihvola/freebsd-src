@@ -45,7 +45,7 @@
 #include "clkdev_if.h"
 
 /*
- * Layout of the clock registers:
+ * The layout of clock registers:
  * +-----------------------------+
  * | 31 | 30  | 29 - 24 | 23 - 0 |
  * | EN | INV | MUX     | DIV    |
@@ -85,13 +85,11 @@ jh7110_clk_init(struct clknode *clk, device_t dev)
 
 	sc = clknode_get_softc(clk);
 	
-	printf("jh7110_clk_init(), clk->name: %s\n", clknode_get_name(clk));
-
 	if (sc->flags & JH7110_CLK_HAS_MUX) {
-	  DEVICE_LOCK(clk);
-	  reg = READ4_MEMRES(clk, sc->offset);
-	  DEVICE_UNLOCK(clk);
-	  idx = (reg & JH7110_MUX_MASK) >> JH7110_MUX_SHIFT;
+		DEVICE_LOCK(clk);
+		reg = READ4_MEMRES(clk, sc->offset);
+		DEVICE_UNLOCK(clk);
+		idx = (reg & JH7110_MUX_MASK) >> JH7110_MUX_SHIFT;
 	}
 
 	clknode_init_parent_idx(clk, idx);
@@ -105,16 +103,10 @@ jh7110_clk_set_gate(struct clknode *clk, bool enable)
 	struct jh7110_clk_sc *sc;
 	uint32_t reg;
 
-	printf("jh7110_clk_set_gate\n");
-
 	sc = clknode_get_softc(clk);
 
-	if ((sc->flags & JH7110_CLK_HAS_GATE) == 0) {
-		printf("jh7110_clk_set_gate 2\n");
+	if ((sc->flags & JH7110_CLK_HAS_GATE) == 0)
 		return (0);
-	}
-
-	printf("jh7110_clk_set_gate(), id: %d, offset: %u\n", sc->id, sc->offset);
 
 	DEVICE_LOCK(clk);
 	reg = READ4_MEMRES(clk, sc->offset);
@@ -134,30 +126,25 @@ jh7110_clk_set_mux(struct clknode *clk, int idx)
 	struct jh7110_clk_sc *sc;
 	uint32_t reg;
 
-	printf("jh7110_clk_set_mux\n");
-	
 	sc = clknode_get_softc(clk);
 
-	if ((sc->flags & JH7110_CLK_HAS_MUX) == 0) {
-		printf("jh7110_clk_setmux 2\n");
+	if ((sc->flags & JH7110_CLK_HAS_MUX) == 0)
 		return (ENXIO);
-	}
 
 	/* Checking index size */
-	if ((idx & (JH7110_MUX_MASK >> JH7110_MUX_SHIFT)) != idx) {
-		printf("jh7110_clk_setmux 3\n");	
+	if ((idx & (JH7110_MUX_MASK >> JH7110_MUX_SHIFT)) != idx)
 		return (EINVAL);
-	}
 
 	DEVICE_LOCK(clk);
+
 	reg = READ4_MEMRES(clk, sc->offset) & ~JH7110_MUX_MASK;
 	reg |= idx << JH7110_MUX_SHIFT;
         WRITE4_MEMRES(clk, sc->offset, reg);
+
 	DEVICE_UNLOCK(clk);
 
 	return (0);
 }
-
 
 static int
 jh7110_clk_recalc_freq(struct clknode *clk, uint64_t *freq)
@@ -165,12 +152,11 @@ jh7110_clk_recalc_freq(struct clknode *clk, uint64_t *freq)
 	struct jh7110_clk_sc *sc;
 	uint32_t divisor;
 
-	printf("jh7110_clk_recalc_freq\n");
 	sc = clknode_get_softc(clk);
 
-	if ((sc->flags & JH7110_CLK_HAS_DIV) == 0) {
+	/* Returning error here causes panic */
+	if ((sc->flags & JH7110_CLK_HAS_DIV) == 0)
 		return (0);
-	}
 
 	DEVICE_LOCK(clk);
 	divisor = READ4_MEMRES(clk, sc->offset) & JH7110_DIV_MASK;
@@ -181,7 +167,6 @@ jh7110_clk_recalc_freq(struct clknode *clk, uint64_t *freq)
 	    sc->id %2 == 0)
 		divisor >>= 8;
 
-	printf("jh7110_clk_recalc_freq() 5, divisor: %u\n", divisor);
 	if (divisor)
 		*freq = *freq / divisor;
 	else
@@ -196,15 +181,13 @@ jh7110_clk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 {
 
 	struct jh7110_clk_sc *sc;
-	uint64_t divisor;
+	uint32_t divisor;
 
-	printf("jh7110_clk_set_freq\n");
 	sc = clknode_get_softc(clk);
 
-	if ((sc->flags & JH7110_CLK_HAS_DIV) == 0) {
+	if ((sc->flags & JH7110_CLK_HAS_DIV) == 0)
 		return (0);
-	}
-	
+
 	divisor = MIN(MAX(DIV_ROUND_CLOSEST(fin, *fout), 1UL), sc->d_max);
 
 	if (sc->id >= JH7110_UART3_CLK_CORE &&
@@ -228,7 +211,6 @@ jh7110_clk_set_freq(struct clknode *clk, uint64_t fin, uint64_t *fout,
 	
 	return (0);
 }
-
 
 static clknode_method_t jh7110_clknode_methods[] = {
 	/* Device interface */
@@ -257,14 +239,16 @@ jh7110_clk_register(struct clkdom *clkdom,
 
 	sc = clknode_get_softc(clk);
 	
-	if(mem_group == JH7110_CLK_AON) {
-	  sc->offset = (clkdef->clkdef.id - JH7110_CLK_STG_REG_END) * REG_SIZE;
+	if (mem_group == JH7110_CLK_AON) {
+		sc->offset = (clkdef->clkdef.id - JH7110_CLK_STG_REG_END)
+			                                             * REG_SIZE;
 	}
-	else if(mem_group == JH7110_CLK_STG) {
-	  sc->offset = (clkdef->clkdef.id - JH7110_CLK_SYS_REG_END) * REG_SIZE;
+	else if (mem_group == JH7110_CLK_STG) {
+		sc->offset = (clkdef->clkdef.id - JH7110_CLK_SYS_REG_END)
+			                                             * REG_SIZE;
 	}
 	else {
-	  sc->offset = clkdef->clkdef.id * REG_SIZE;
+		sc->offset = clkdef->clkdef.id * REG_SIZE;
 	}
 	
 	sc->flags = clkdef->flags | mem_group;
@@ -272,9 +256,6 @@ jh7110_clk_register(struct clkdom *clkdom,
 	sc->d_max = clkdef->d_max;
 
 	clknode_register(clkdom, clk);
-
-	printf("jh7110_clk_register(), name: %s, flag: %d\n",
-	                           clknode_get_name(clk), sc->flags);
 
 	return (0);
 }

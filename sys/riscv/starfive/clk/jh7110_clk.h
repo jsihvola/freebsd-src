@@ -1,7 +1,6 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright 2022 Mitchell Horne <mhorne@FreeBSD.org>
  * Copyright 2023 Jari Sihvola <jsihv@gmx.com>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,7 +33,7 @@
 #define	JH7110_CLK_HAS_GATE	0x01
 #define	JH7110_CLK_HAS_MUX	0x02
 #define	JH7110_CLK_HAS_DIV	0x04
-#define	JH7110_CLK_HAS_FRAC	0x08
+#define	JH7110_CLK_HAS_INV	0x08
 
 #define JH7110_CLK_AON          0x10 
 #define JH7110_CLK_ISP          0x20 
@@ -95,10 +94,8 @@ struct jh7110_pll_def {
 #define	JH7110_GATEDIV(_idx, _name, _pn, _d_max)			        \
     JH7110_CLK(_idx, _name, _pn, _d_max, JH7110_CLK_HAS_GATE                    \
                                                         | JH7110_CLK_HAS_DIV)
-/*
-#define	JH7110_MUXDIV(_idx, _name, _pn, _d_max)		\
-    JH7110_CLK(_idx, _name, _pn, JH7110_CLK_HAS_MUXDIV)
-*/
+#define JH7110_INV(_idx, _name, _pn)				                \
+    JH7110_CLK(_idx, _name, _pn, 0, JH7110_CLK_HAS_INV)
 
 struct resource * jh7110_clk_get_memres(struct clknode *clk, uint32_t flags);
 

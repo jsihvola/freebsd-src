@@ -25,10 +25,7 @@
  * SUCH DAMAGE.
 */
 
-/* Driver for JH7110 reset device */
-
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -113,8 +110,6 @@ jh7110_io_assign(struct jh7110_reset_softc *sc,
 
 	uint32_t crg = id / 32;
 
-	printf("jh7110_io_assign(), crg: %d\n", crg);
-
 	if (crg == SYS0) {
 		iodata->res = sc->sys_mem;
 		iodata->status_offset = SYSCRG_RESET_STATUS0;
@@ -166,17 +161,12 @@ jh7110_reset_assert(device_t dev, intptr_t id, bool assert)
   	struct jh7110_reset_softc *sc;
 	struct jh7110_reset_carrier iodata;
 	struct timeval time_end, time_comp;
-	uint32_t bitmask = (1UL << id % 32);
 	uint32_t regvalue, ready = 0;
+	uint32_t bitmask = 1UL << id % 32;
 	int ret;
-
-	printf("jh7110_reset_assert\n");
 
 	sc = device_get_softc(dev);
 	jh7110_io_assign(sc, id, &iodata);
-
-	if (!assert)
-		ready ^= bitmask;
 
 	mtx_lock(&sc->mtx);
 
@@ -188,9 +178,14 @@ jh7110_reset_assert(device_t dev, intptr_t id, bool assert)
 		regvalue &= ~bitmask;
 	RESET_WRITE(iodata, selector, regvalue);
 
-	/* Timeout to prevent perpetual hanging when deasserting with gated clocks */
+	/* Timeout to prevent perpetual hanging
+	   when deasserting with gated clocks */
+
 	getmicrotime(&time_end);
 	time_end.tv_usec += 1000; /* Timeout is 1000 microseconds */
+
+	if (!assert)
+		ready = bitmask;
 	
 	for(;;)	{
 		regvalue = RESET_READ(iodata, status);
@@ -220,7 +215,6 @@ jh7110_reset_is_asserted(device_t dev, intptr_t id, bool *reset)
 	uint32_t reg_value;
 	uint32_t bitmask;
 
-	printf("jh7110_reset_is_asserted\n");
 	sc = device_get_softc(dev);
 
 	jh7110_io_assign(sc, id, &iodata);
@@ -244,7 +238,7 @@ jh7110_reset_probe(device_t dev)
 	if(ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "StarFive JH7110 Reset");
+	device_set_desc(dev, "StarFive JH7110 reset driver");
 
 	return (0);
 }
@@ -261,7 +255,7 @@ jh7110_reset_attach(device_t dev)
 
 	rid = 0;
 	err = ofw_bus_find_string_index(node, "reg-names", "syscrg", &rid);
-	printf("jh7110_reset_attach(), rid: %d, ", rid);
+
 	if (err != 0) {
 		device_printf(dev, "Cannot get 'syscrg' index\n");
 		return (ENXIO);
@@ -272,7 +266,7 @@ jh7110_reset_attach(device_t dev)
 		device_printf(dev, "Cannot allocate 'syscrg'\n");
 		return (ENXIO);
 	}
-	printf("rid: %d, ", rid);
+
 	rid = 0;
 	err = ofw_bus_find_string_index(node, "reg-names", "stgcrg", &rid);
 	if (err != 0) {
@@ -285,7 +279,7 @@ jh7110_reset_attach(device_t dev)
 		device_printf(dev, "Cannot allocate 'stgcrg'\n");
 		return (ENXIO);
 	}
-	printf("rid: %d, ", rid);
+
 	rid = 0;
 	err = ofw_bus_find_string_index(node, "reg-names", "aoncrg", &rid);
 	if (err != 0) {
@@ -298,7 +292,7 @@ jh7110_reset_attach(device_t dev)
 		device_printf(dev, "Cannot allocate 'aoncrg'\n");
 		return (ENXIO);
 	}
-	printf("rid: %d, ", rid);
+
 	rid = 0;
 	err = ofw_bus_find_string_index(node, "reg-names", "ispcrg", &rid);
 	if (err != 0) {
@@ -311,7 +305,7 @@ jh7110_reset_attach(device_t dev)
 		device_printf(dev, "Cannot allocate 'isp'\n");
 		return (ENXIO);
 	}
-	printf("rid: %d, ", rid);
+
 	rid = 0;
 	err = ofw_bus_find_string_index(node, "reg-names", "voutcrg", &rid);
 	if (err != 0) {
@@ -324,7 +318,6 @@ jh7110_reset_attach(device_t dev)
 		device_printf(dev, "Cannot allocate 'vout'\n");
 		return (ENXIO);
 	}
-	printf("rid: %d\n", rid);
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
@@ -337,6 +330,7 @@ static device_method_t jh7110_reset_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,         jh7110_reset_probe),
 	DEVMETHOD(device_attach,        jh7110_reset_attach),
+
 	/* Reset interface */
 	DEVMETHOD(hwreset_assert,       jh7110_reset_assert),
 	DEVMETHOD(hwreset_is_asserted,  jh7110_reset_is_asserted),

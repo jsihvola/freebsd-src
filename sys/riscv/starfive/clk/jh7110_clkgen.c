@@ -58,13 +58,8 @@
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 
 #include <riscv/starfive/clk/jh7110_clk.h>
-//#include <dev/extres/syscon/syscon.h>
 
 #include "clkdev_if.h"
-//#include "syscon_if.h"
-
-/* This file contains general functionality for jh7110 clock generator driver
-   plus more specifically initializes the clocks of sys and aon groups */
 
 static struct ofw_compat_data compat_data[] = {
 	{ "starfive,jh7110-clkgen",	1 },
@@ -99,8 +94,6 @@ jh7110_clk_get_memres(struct clknode *clk, uint32_t flags)
 
 	sc = device_get_softc(clknode_get_device(clk));
 
-	printf("jh7110_clk_get_memres(), name: %s, flag: %d\n", clknode_get_name(clk), flags);
-	
 	if (flags & JH7110_CLK_SYS)
 		return sc->sys_mem_res;
 	else if (flags & JH7110_CLK_AON)
@@ -112,7 +105,9 @@ jh7110_clk_get_memres(struct clknode *clk, uint32_t flags)
 	else if (flags & JH7110_CLK_VOUT)
 		return sc->vout_mem_res;
 
-	printf("Error, clknode has no memory resource flag\n");
+	device_printf(clknode_get_device(clk),
+                       "Error: clknode %s without a mem resource flag\n",
+		                                         clknode_get_name(clk));
 	
 	return (NULL);
 }
@@ -149,13 +144,22 @@ static const char *u1_dw_sdio_clk_sdcard_p[] = { "axi_cfg0" };
 
 static const char *gmac_src_p[] = { "gmacusb_root" };
 
+static const char *u1_dw_gmac5_axi64_clk_rx_p[] = { "gmac1_rgmii_rxin", 
+		                                             "gmac1_rmii_rtx" };
+static const char *u1_dw_gmac5_axi64_clk_rx_inv_p[] = {
+                                                   "u1_dw_gmac5_axi64_clk_rx" };
+
 static const char *gmac0_gtxclk_p[] = { "gmacusb_root" };
 static const char *gmac0_ptp_p[] = { "gmac_src" };
+static const char *gmac_phy_p[] = { "gmac_src" };
 static const char *gmac0_gtxc_p[] = { "gmac0_gtxclk" };
 
 static const char *gmac1_gtxclk_p[] = { "gmacusb_root" };
 
-static const char *u1_dw_gmac5_axi64_clk_tx_p[] = { "gmac1_gtxclk", "gmac1_rmii_rtx" };
+static const char *u1_dw_gmac5_axi64_clk_tx_p[] = { "gmac1_gtxclk",
+		                                             "gmac1_rmii_rtx" };
+static const char *u1_dw_gmac5_axi64_clk_tx_inv_p[] = {
+                                                   "u1_dw_gmac5_axi64_clk_tx" };
 static const char *u1_dw_gmac5_axi64_clk_ptp_p[] = { "gmac_src" };
 static const char *u1_dw_gmac5_axi64_clk_ahb_p[] = { "ahb0" };
 static const char *u1_dw_gmac5_axi64_clk_axi_p[] = { "stg_axiahb" };
@@ -172,10 +176,22 @@ static const char *apb_bus_p[] = { "u2_pclk_mux_pclk" };
 static const char *u2_pclk_mux_pclk_p[] = { "u2_pclk_mux_func_pclk" };
 static const char *u2_pclk_mux_func_pclk_p[] = { "apb_bus_func" };
 static const char *aon_ahb_p[] = { "stg_axiahb" };
-
+static const char *u0_dw_gmac5_axi64_clk_rmii_p[] = { "gmac0_rmii_refin" };
+static const char *u1_dw_gmac5_axi64_clk_rmii_p[] = { "gmac0_rmii_refin" };
 static const char *pll_parents[] = { "osc" };
-
 static const char *stg_apb_p[] = { "apb_bus" };
+static const char *u0_plda_pcie_clk_axi_slv0_p[] = {
+	                                          "u0_plda_pcie_clk_axi_mst0" };
+static const char *u1_plda_pcie_clk_axi_slv0_p[] = {
+	                                          "u1_plda_pcie_clk_axi_mst0" };
+static const char *u0_plda_pcie_clk_axi_slv_p[] = {
+	                                          "u0_plda_pcie_clk_axi_mst0" };
+static const char *u1_plda_pcie_clk_axi_slv_p[] = {
+	                                          "u1_plda_pcie_clk_axi_mst0" };
+static const char *u0_plda_pcie_clk_osc_p[] = { "osc" };
+static const char *u1_plda_pcie_clk_osc_p[] = { "osc" };
+static const char *u0_e2_sft7110_irq_sync_clk_core_p[] = { "stg_axiahb" };
+static const char *u0_u7mc_sft7110_irq_sync_bux_clk_p[] = { "cpu_bus" };
 
 /* non-pll SYS clocks */
 static const struct jh7110_clk_def sys_clks[] = {
@@ -185,9 +201,14 @@ static const struct jh7110_clk_def sys_clks[] = {
 	JH7110_GATEDIV(JH7110_PERH_ROOT, "perh_root", perh_root_p, 2),
 	JH7110_MUX(JH7110_BUS_ROOT, "bus_root", bus_root_p),
 
+	JH7110_MUX(JH7110_GMAC5_CLK_RX, "u1_dw_gmac5_axi64_clk_rx",
+		   u1_dw_gmac5_axi64_clk_rx_p),
+	JH7110_INV(JH7110_GMAC5_CLK_RX_INV, "u1_dw_gmac5_axi64_clk_rx_inv",
+		   u1_dw_gmac5_axi64_clk_rx_inv_p),
+	
 	JH7110_GATE(JH7110_GMAC5_CLK_AHB, "u1_dw_gmac5_axi64_clk_ahb",
 		    u1_dw_gmac5_axi64_clk_ahb_p),
-	
+
 	JH7110_GATE(JH7110_APB0, "apb0", apb0_p),
 	JH7110_GATE(JH7110_SYS_IOMUX_PCLK, "u0_sys_iomux_pclk",
 		    u0_sys_iomux_pclk_p),
@@ -226,18 +247,21 @@ static const struct jh7110_clk_def sys_clks[] = {
 	
 	JH7110_GATEDIV(JH7110_GMAC0_GTXCLK, "gmac0_gtxclk", gmac0_gtxclk_p, 15),
 	JH7110_GATEDIV(JH7110_GMAC0_PTP, "gmac0_ptp", gmac0_ptp_p, 31),
+	JH7110_GATEDIV(JH7110_GMAC_PHY, "gmac_phy", gmac_phy_p, 31),
 	JH7110_GATE(JH7110_GMAC0_GTXC, "gmac0_gtxc", gmac0_gtxc_p),
 
 	JH7110_DIV(JH7110_GMAC1_GTXCLK, "gmac1_gtxclk", gmac1_gtxclk_p, 15),
 	JH7110_GATEMUX(JH7110_GMAC5_CLK_TX, "u1_dw_gmac5_axi64_clk_tx",
-		       u1_dw_gmac5_axi64_clk_tx_p),
+		    u1_dw_gmac5_axi64_clk_tx_p),
+	JH7110_INV(JH7110_GMAC5_CLK_TX_INV, "u1_dw_gmac5_axi64_clk_tx_inv",
+		    u1_dw_gmac5_axi64_clk_tx_inv_p),
 	JH7110_GATEDIV(JH7110_GMAC5_CLK_PTP, "u1_dw_gmac5_axi64_clk_ptp",
-		       u1_dw_gmac5_axi64_clk_ptp_p, 31),
+		    u1_dw_gmac5_axi64_clk_ptp_p, 31),
 	JH7110_GATE(JH7110_GMAC5_CLK_AXI, "u1_dw_gmac5_axi64_clk_axi",
 		    u1_dw_gmac5_axi64_clk_axi_p),
 	JH7110_GATE(JH7110_GMAC1_GTXC, "gmac1_gtxc", gmac1_gtxc_p),
 	JH7110_DIV(JH7110_GMAC1_RMII_RTX, "gmac1_rmii_rtx",
-		   gmac1_rmii_rtx_p, 30),
+		    gmac1_rmii_rtx_p, 30),
 
 	JH7110_DIV(JH7110_NOCSTG_BUS, "nocstg_bus", nocstg_bus_p, 3),
 
@@ -284,16 +308,49 @@ static struct clk_fixed_def fixed_pll_clks[] = {
 	JH7110_PLL(JH7110_APB12, "apb12", apb12_p),
 
 	JH7110_PLL(JH7110_AON_AHB, "aon_ahb", aon_ahb_p),
+	JH7110_PLL(JH7110_GMAC5_CLK_RMII, "u1_dw_gmac5_axi64_clk_rmii",
+		   u1_dw_gmac5_axi64_clk_rmii_p),
+	JH7110_PLL(JH7110_U7_IRQ_SYNC_BUS_CLK,
+		   "u0_u7mc_sft7110_irq_sync_bux_clk",
+		   u0_u7mc_sft7110_irq_sync_bux_clk_p),
 
+	/* AON */
+	JH7110_PLL(JH7110_U0_GMAC5_CLK_RMII, "u0_dw_gmac5_axi64_clk_rmii",
+		   u0_dw_gmac5_axi64_clk_rmii_p),
+	
 	/* STG */
 	JH7110_PLL(JH7110_STG_APB, "stg_apb", stg_apb_p),
+	JH7110_PLL(JH7110_PCIE0_CLK_AXI_SLV0, "u0_plda_pcie_clk_axi_slv0",
+		   u0_plda_pcie_clk_axi_slv0_p),
+
+	JH7110_PLL(JH7110_PCIE0_CLK_AXI_SLV, "u0_plda_pcie_clk_axi_slv",
+		   u0_plda_pcie_clk_axi_slv_p),
+	
+	JH7110_PLL(JH7110_PCIE1_CLK_AXI_SLV0, "u1_plda_pcie_clk_axi_slv0",
+		   u1_plda_pcie_clk_axi_slv0_p),
+	JH7110_PLL(JH7110_PCIE1_CLK_AXI_SLV, "u1_plda_pcie_clk_axi_slv",
+		   u1_plda_pcie_clk_axi_slv_p),
+	JH7110_PLL(JH7110_PCIE0_CLK_OSC, "u0_plda_pcie_clk_osc",
+		   u0_plda_pcie_clk_osc_p),
+	JH7110_PLL(JH7110_PCIE1_CLK_OSC, "u1_plda_pcie_clk_osc",
+		   u1_plda_pcie_clk_osc_p),
+	JH7110_PLL(JH7110_E2_IRQ_SYNC_CLK_CORE,
+		   "u0_e2_sft7110_irq_sync_clk_core",
+		   u0_e2_sft7110_irq_sync_clk_core_p),
 };
 
 /* non-pll AON clocks & parents */
 static const char *u0_dw_gmac5_axi64_clk_ahb_p[] = { "aon_ahb" };
 static const char *u0_dw_gmac5_axi64_clk_axi_p[] = { "aon_ahb" };
-static const char *u0_dw_gmac5_axi64_clk_tx_p[] = { "gmac0_gtxclk", "gmac0_rmii_rtx" };
 static const char *gmac0_rmii_rtx_p[] = { "gmac0_rmii_refin" };
+static const char *u0_dw_gmac5_axi64_clk_tx_p[] = { "gmac0_gtxclk",
+		                                             "gmac0_rmii_rtx" };
+static const char *u0_dw_gmac5_axi64_clk_tx_inv_p[] = {
+                                                   "u0_dw_gmac5_axi64_clk_tx" };
+static const char *u0_dw_gmac5_axi64_clk_rx_p[] = { "gmac0_rgmii_rxin",
+		                                             "gmac0_rmii_rtx" };
+static const char *u0_dw_gmac5_axi64_clk_rx_inv_p[] = {
+                                                   "u0_dw_gmac5_axi64_clk_rx" };
 
 static const struct jh7110_clk_def aon_clks[] = {
 	JH7110_GATE(JH7110_U0_GMAC5_CLK_AHB, "u0_dw_gmac5_axi64_clk_ahb",
@@ -304,26 +361,38 @@ static const struct jh7110_clk_def aon_clks[] = {
 		    gmac0_rmii_rtx_p, 30),
 	JH7110_GATEMUX(JH7110_U0_GMAC5_CLK_TX, "u0_dw_gmac5_axi64_clk_tx",
 		    u0_dw_gmac5_axi64_clk_tx_p),
+	JH7110_INV(JH7110_U0_GMAC5_CLK_TX_INV, "u0_dw_gmac5_axi64_clk_tx_inv",
+		    u0_dw_gmac5_axi64_clk_tx_inv_p),
+	JH7110_MUX(JH7110_U0_GMAC5_CLK_RX, "u0_dw_gmac5_axi64_clk_rx",
+		    u0_dw_gmac5_axi64_clk_rx_p),
+	JH7110_INV(JH7110_U0_GMAC5_CLK_RX_INV, "u0_dw_gmac5_axi64_clk_rx_inv",
+		   u0_dw_gmac5_axi64_clk_rx_inv_p),
 };
 
 /* STG clocks & parents */
-static const char *plda_pcie_clk_apb_p[] = { "stg_apb" };
-static const char *plda_pcie_clk_axi_mst0_p[] = { "stg_axiahb" };
-static const char *plda_pcie_clk_tl_p[] = { "stg_axiahb" };
+static const char *u0_plda_pcie_clk_apb_p[] = { "stg_apb" };
+static const char *u0_plda_pcie_clk_axi_mst0_p[] = { "stg_axiahb" };
+static const char *u0_plda_pcie_clk_tl_p[] = { "stg_axiahb" };
+static const char *u1_plda_pcie_clk_apb_p[] = { "stg_apb" };
+static const char *u1_plda_pcie_clk_axi_mst0_p[] = { "stg_axiahb" };
+static const char *u1_plda_pcie_clk_tl_p[] = { "stg_axiahb" };
+static const char *u0_pcie01_slv_dec_mainclk_p[] = { "stg_axiahb" };
 
 static const struct jh7110_clk_def stg_clks[] = {
 	JH7110_GATE(JH7110_PCIE0_CLK_APB, "u0_plda_pcie_clk_apb",
-		    plda_pcie_clk_apb_p),
+		    u0_plda_pcie_clk_apb_p),
 	JH7110_GATE(JH7110_PCIE0_CLK_AXI_MST0, "u0_plda_pcie_clk_axi_mst0",
-		    plda_pcie_clk_axi_mst0_p),
+		    u0_plda_pcie_clk_axi_mst0_p),
 	JH7110_GATE(JH7110_PCIE0_CLK_TL, "u0_plda_pcie_clk_tl",
-		    plda_pcie_clk_tl_p),
+		    u0_plda_pcie_clk_tl_p),
 	JH7110_GATE(JH7110_PCIE1_CLK_APB, "u1_plda_pcie_clk_apb",
-		    plda_pcie_clk_apb_p),
+		    u1_plda_pcie_clk_apb_p),
 	JH7110_GATE(JH7110_PCIE1_CLK_AXI_MST0, "u1_plda_pcie_clk_axi_mst0",
-		    plda_pcie_clk_axi_mst0_p),
+		    u1_plda_pcie_clk_axi_mst0_p),
 	JH7110_GATE(JH7110_PCIE1_CLK_TL, "u1_plda_pcie_clk_tl",
-		    plda_pcie_clk_tl_p),
+		    u1_plda_pcie_clk_tl_p),
+	JH7110_GATE(JH7110_PCIE01_SLV_DEC_MAINCLK, "u0_pcie01_slv_dec_mainclk",
+		    u0_pcie01_slv_dec_mainclk_p),
 };
 
 /* Default DT mapper. */
@@ -331,21 +400,15 @@ static int
 jh7110_ofw_map(struct clkdom *clkdom, uint32_t ncells,
     phandle_t *cells, struct clknode **clk)
 {
-
 	int id = cells[0];
 
-	printf("jh7110_ofw_map(), ncells: %u, cells[0]: %u\n", ncells, cells[0]);
-  
 	if (ncells == 1) {
-		printf("jh7110_ofw_map, ncells == 1\n");
 		*clk = clknode_find_by_id(clkdom, id);
 	}
 	else {
-		printf("jh7110_ofw_map, nells != 1\n");
 		return  (ERANGE);
 	}
 	if (*clk == NULL) {
-		printf("jh7110_ofw_map 3\n");
 		return (ENXIO);
 	}
 	return (0);
@@ -360,17 +423,9 @@ jh7110_clkgen_probe(device_t dev)
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
 		return (ENXIO);
 
-	device_set_desc(dev, "StarFive Clock Controller");
+	device_set_desc(dev, "StarFive JH7110 clock generator controller");
 
 	return (BUS_PROBE_DEFAULT);
-}
-
-static void
-jh7110_print_clkreg(const char *name, uint32_t reg)
-{
-	//There seems to be surprisingly little difference between
-	//different types of clocks here...
-	printf("Register clock %s:, register: %u\n", name, reg);
 }
 
 static int
@@ -385,7 +440,6 @@ jh7110_clkgen_attach(device_t dev)
 	phandle_t node;
 	clk_t osc, cpu_core, cpu_root, pll0_out;
 	uint64_t cpu_core_freq;
-	uint64_t rstart;
 
 	sc = device_get_softc(dev);
 
@@ -445,54 +499,17 @@ jh7110_clkgen_attach(device_t dev)
 	}
 	clkdom_set_ofw_mapper(sc->clkdom, jh7110_ofw_map);
 
-	/*  ISP and VOUT can be added later. Not exactly sure if they will
-	    be allocated here or does it happen on their init functions
-	
-	error =	ofw_bus_find_string_index(node, "reg-names", "isp", &rid);
-	if (error != 0) {
-		device_printf(dev, "Cannot get 'isp' memory\n");
-		return (ENXIO);
-	}
-	sc->isp_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
-	if (sc->isp_mem_res == NULL) {
-		device_printf(dev, "Cannot allocate 'isp' (rid: %d)\n",
-		    rid);
-		return (ENXIO);
-	}
-	error =	ofw_bus_find_string_index(node, "reg-names", "vout", &rid);
-	if (error != 0) {
-		device_printf(dev, "Cannot get 'vout' memory\n");
-		return (ENXIO);
-	}
-	sc->vout_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE | RF_SHAREABLE);
-	if (sc->vout_mem_res == NULL) {
-		device_printf(dev, "Cannot allocate 'vout' (rid: %d)\n",
-		    rid);
-		return (ENXIO);
-	}
-	*/
-
 	/* Temporary solution for syscon registers */
 	sc->syscon_mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 	    0x13030000, 0x1303FFFF, 0x1000, RF_ACTIVE );
 
-	rstart = rman_get_start(sc->syscon_mem_res);
-	printf("%s, rman_get_start returns %lu\n", __func__, rstart);
-	rstart = rman_get_end(sc->syscon_mem_res);
-	printf("%s, rman_get_end returns %lu\n", __func__, rstart);
-	
 	/* Get syscon property for pll_out clocks */
 	error = OF_getencprop_alloc_multi(node, "starfive,sys-syscon",
 					  sizeof(pcell_t), (void**)&sysprop);
 	
 	/* Element 0 is a phandle, 1-8 are offset values */
-	for (int i = 0; i != 8; i++) {
+	for (int i = 0; i != 8; i++)
 		pll_offsets[i] = sysprop[i+1];
-		printf("i, %d, pll_offsets[i]: %d, ", i, pll_offsets[i]); //debug
-	}
-	printf("\n");
 
 	/* Registering clocks */
 
@@ -505,18 +522,14 @@ jh7110_clkgen_attach(device_t dev)
 		if (error != 0)
 			device_printf(dev, "Failed to register clock %s: %d\n",
 			    pll_out_clks[i].clkdef.name, error);
-		else
-			printf("%s clk registered\n", pll_out_clks[i].clkdef.name);
 	}
 
 	for (i = 0; i < nitems(sys_clks); i++) {
-	        error = jh7110_clk_register(sc->clkdom, &sys_clks[i], JH7110_CLK_SYS);
+	        error = jh7110_clk_register(sc->clkdom, &sys_clks[i],
+					                        JH7110_CLK_SYS);
 		if (error != 0)
 			device_printf(dev, "Failed to register clock %s: %d\n",
 			    sys_clks[i].clkdef.name, error);
-		else
-			jh7110_print_clkreg(sys_clks[i].clkdef.name,
-					    RD4(sc, sys_clks[i].offset));
 	}
 
 	for (i = 0; i < nitems(fixed_pll_clks); i++) {
@@ -525,9 +538,6 @@ jh7110_clkgen_attach(device_t dev)
 		if (error != 0)
 			device_printf(dev, "Failed to register clock %s: %d\n",
 				      fixed_pll_clks[i].clkdef.name, error);
-		else
-			printf("%s reg\t%x\n", fixed_pll_clks[i].clkdef.name,
-		       RD4(sc, fixed_pll_clks[i].clkdef.id * sizeof(uint32_t)));
 	}
 
 	for (int i = 0; i < nitems(aon_clks); i++) {
@@ -536,28 +546,23 @@ jh7110_clkgen_attach(device_t dev)
 		if (error != 0)
 			device_printf(dev, "Failed to register clock %s: %d\n",
 				      aon_clks[i].clkdef.name, error);
-		else
-			printf("jh7110_clkgen_attach(), Registered %s\n",
-			       aon_clks[i].clkdef.name);
 	}
 
 	for (i = 0; i < nitems(stg_clks); i++) {
-	        error = jh7110_clk_register(sc->clkdom, &stg_clks[i], JH7110_CLK_STG);
+	        error = jh7110_clk_register(sc->clkdom, &stg_clks[i],
+					                        JH7110_CLK_STG);
 		if (error != 0)
 			device_printf(dev, "Failed to register clock %s: %d\n",
 			    stg_clks[i].clkdef.name, error);
-		else
-			jh7110_print_clkreg(stg_clks[i].clkdef.name,
-					    RD4(sc, stg_clks[i].offset));
 	}
 	
 	error = clkdom_finit(sc->clkdom);
 	if (error) {
-		device_printf(dev, "Clk domain finit fails %x.\n", error);
+		device_printf(dev, "Clkdom_finit returns error %d.\n", error);
 	}
 
 	/* Adjusting clocks */
-	
+
 	error = clk_get_by_name(dev, "osc", &osc);
 	if (error != 0)
 		device_printf(dev, "Failed to get osc by name\n");
@@ -594,9 +599,8 @@ jh7110_clkgen_attach(device_t dev)
 	if (error != 0)
 		device_printf(dev, "Failed to set pll0_out parent\n");
 	
-	//if (bootverbose)
-	printf("clockdom_dump()\n");
-	clkdom_dump(sc->clkdom);
+	if (bootverbose)
+		clkdom_dump(sc->clkdom);
 
 	return (0);
 }
@@ -604,8 +608,8 @@ jh7110_clkgen_attach(device_t dev)
 static int
 jh7110_clkgen_detach(device_t dev)
 {
-	printf("%s\n", __func__);
-	return (EBUSY);
+	/* Detach not supported */
+	return (EACCES);
 }
 
 
@@ -613,11 +617,10 @@ static int
 jh7110_clkgen_read_4(device_t dev, bus_addr_t addr, uint32_t *val)
 {
 	struct jh7110_clkgen_softc *sc;
-	printf("%s\n", __func__);
-	
 	sc = device_get_softc(dev);
 
 	*val = RD4(sc, addr);
+
 	return (0);
 }
 
@@ -625,20 +628,20 @@ static int
 jh7110_clkgen_write_4(device_t dev, bus_addr_t addr, uint32_t val)
 {
 	struct jh7110_clkgen_softc *sc;
-
-	printf("%s\n", __func__);
 	sc = device_get_softc(dev);
+
 	WR4(sc, addr, val);
+
 	return (0);
 }
 
 static int
-jh7110_clkgen_modify_4(device_t dev, bus_addr_t addr, uint32_t clr, uint32_t set)
+jh7110_clkgen_modify_4(device_t dev, bus_addr_t addr,
+		                                 uint32_t clr, uint32_t set)
 {
 	struct jh7110_clkgen_softc *sc;
 	uint32_t reg;
 
-	printf("%s\n", __func__);
 	sc = device_get_softc(dev);
 
 	reg = RD4(sc, addr);
@@ -684,9 +687,6 @@ static device_method_t jh7110_clkgen_methods[] = {
 
 DEFINE_CLASS_0(jh7110_clkgen, jh7110_clkgen_driver, jh7110_clkgen_methods,
     sizeof(struct jh7110_clkgen_softc));
-
 EARLY_DRIVER_MODULE(jh7110_clkgen, simplebus, jh7110_clkgen_driver, 0, 0,
     BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
-
-/* TODO: MODULE_DEPEND? */
 MODULE_VERSION(jh7110_clkgen, 1);
