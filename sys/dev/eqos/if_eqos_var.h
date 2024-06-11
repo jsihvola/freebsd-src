@@ -85,6 +85,13 @@ struct eqos_softc {
 	bool			link_up;
 	int			tx_watchdog;
 
+	bool                    thresh_dma_mode;
+	bool                    pblx8;
+	uint32_t                txpbl;
+	uint32_t                rxpbl;
+  	uint32_t                ttc;
+  	uint32_t                rtc;
+  
 	struct ifnet		*ifp;
 	device_t		miibus;
 	struct mtx		lock;
@@ -93,6 +100,8 @@ struct eqos_softc {
 	struct eqos_ring	tx;
 	struct eqos_ring	rx;
 };
+
+int eqos_phy_reset(device_t dev);
 
 DECLARE_CLASS(eqos_driver);
 
